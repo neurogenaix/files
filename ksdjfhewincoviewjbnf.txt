@@ -1,0 +1,62 @@
+### Internal Pen-Testing Team
+
+| **Pros**                                                                                                  | **Why it matters for payment systems**                                                                                                                                                                   |
+| --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Deep contextual knowledge** of the company’s architecture, legacy integrations, and business processes. | Sub-systems such as point-of-sale, tokenisation services, fraud analytics, and acquirer-bank links are often bespoke. An insider can map trust boundaries and data flows quickly, reducing ramp-up time. |
+| **Easier, lower-friction access** to production-like environments, documentation, and key staff.          | Tests can be scheduled around settlement windows or high-volume periods with minimal disruption to card authorisations and clearing.                                                                     |
+| **Continuous assessment capability** instead of a “snapshot.”                                             | Payment environments change frequently (e.g., quarterly PCI revisions, new 3-D Secure versions). An in-house team can iterate fixes and re-test almost immediately.                                      |
+| **Lower marginal cost** once the team is in place.                                                        | For large organisations that must meet PCI DSS requirement 11.3 (annual penetration test *and* after each significant change), recurring external fees can dwarf salaries over time.                     |
+| **Institutional memory** of historical vulnerabilities and compensating controls.                         | Re-appearance of a deserialisation bug in the payment gateway API, for example, will be caught faster by testers who remember the 2023 incident.                                                         |
+
+| **Cons**                                                                                                       | **Where it can hurt**                                                                                                                                                                                          |
+| -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Potential bias & tunnel vision**—“We know how it’s *supposed* to work.”                                      | Blind spots around long-standing assumptions (e.g., that an internal MQ queue is unreachable from a DMZ). Attackers don’t share those assumptions.                                                             |
+| **Perceived lack of independence** by regulators, auditors, or card brands.                                    | PCI DSS and many acquirer contracts strongly “encourage” using a Qualified Security Assessor (QSA)-approved third party for annual tests. Internal-only testing may raise red flags during compliance reviews. |
+| **Career-risk dynamics**—testing your own colleagues’ build.                                                   | Subtle pressure to down-scope or delay tests that might disrupt revenue-critical payment channels.                                                                                                             |
+| **Skill atrophy / narrower tooling** if the team doesn’t engage with the broader offensive-security community. | Modern payment attacks (e.g., abusing EMV fallback paths or attacking cloud HSMs) evolve rapidly; without external stimulus the team may miss new techniques.                                                  |
+| **Resource contention** between project work and testing duties.                                               | The same engineers may be pulled into incident response during a card-skimming alert, derailing the pen-test schedule.                                                                                         |
+
+---
+
+### External Pen-Testing Team
+
+| **Pros**                                                                                                                | **Why it matters for payment systems**                                                                                                                                                             |
+| ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Fresh, attacker-style perspective** with no institutional blinders.                                                   | External testers challenge “impossible” attack chains—e.g., chaining a mis-configured CDN rule with a forgotten test card BIN to bypass rate limits.                                               |
+| **Verified independence**—meets regulatory & stakeholder expectations.                                                  | Demonstrates due diligence to acquirers, card brands, auditors, and the board. Some jurisdictions (e.g., UK PSR, MAS TRM) explicitly expect external reviews for critical payment infrastructures. |
+| **Broader exposure to current threat tactics** across multiple clients and sectors.                                     | Insights into the latest Magecart exfiltration tricks, cloud IAM privilege-escalation pathways, and novel BIN-attack automation seen “in the wild.”                                                |
+| **Highly specialised tooling & research** (hardware labs for PoS, chip-and-pin side-channel rigs, tap-and-pay fuzzers). | Investing in those niche tools internally is rarely cost-effective.                                                                                                                                |
+| **Clearer escalation path** for critical findings.                                                                      | A high-severity flaw reported by an external firm may expedite funding for remediation that internal teams have struggled to prioritise.                                                           |
+
+| **Cons**                                                          | **Where it can hurt**                                                                                                                                                    |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Learning curve & scoping risk**—they start “outside the fence.” | Complex multi-acquirer flows, proprietary host-to-host cryptography, or decades-old batch settlement jobs can be misunderstood, leading to blind spots or wasted effort. |
+| **Higher cost per engagement** and scheduling lead time.          | Peak times (pre-PCI audit season) see premium pricing and long waitlists for top-tier firms.                                                                             |
+| **Snapshot nature**—typically once or twice a year.               | New code pushed to the payment API a week after the test could re-introduce critical issues until the next cycle.                                                        |
+| **Operational disruption** if coordination is poor.               | A poorly timed traffic-flood test could trip fraud-monitoring thresholds or throttle legitimate cardholders.                                                             |
+| **Limited follow-through ownership** of fixes.                    | Once the report is delivered, re-test fees apply; internal teams still need to drive remediation.                                                                        |
+
+---
+
+### Hybrid / Best-Practice Approach
+
+* **Combine both**: maintain a small but capable internal red-team for continuous assurance and architecture-level reviews, then bring in an external PCI-qualified firm annually or after major changes.
+* **Shared tooling & knowledge transfer**: invite external testers to run workshops on new attack techniques; internal testers can provide architecture briefings up front to shorten external scoping.
+* **Segregate duties**: let the internal team focus on dev-stage and staging environments, while externals perform black-box and limited-knowledge tests against production-mirrored setups for maximum realism and independence.
+* **Leverage compliance frameworks**: map each role to PCI DSS 4.0 requirements—e.g., keep internal continuous testing to meet 11.3.1.1 (segmented testing every six months) and use externals for 11.4.1 (annual external penetration test).
+
+---
+
+### Quick decision matrix
+
+\| Goal | Lean internal | Lean external |
+\|---|---|
+\| **Continuous verification of CI/CD releases** | ✅ | ⬜ |
+\| **Regulatory or investor assurance of objectivity** | ⬜ | ✅ |
+\| **Deeply nuanced knowledge of legacy mainframe-card links** | ✅ | ⬜ |
+\| **Exposure to bleeding-edge payment attacks** | ⬜ | ✅ |
+\| **Cost optimisation over several years** | ✅ (after initial hiring) | ⬜ (higher OPEX) |
+\| **Urgent one-off audit with hard deadline** | ⬜ (if team not yet built) | ✅ |
+
+**Bottom line:**
+For a payment environment—where uptime, compliance, and attacker creativity all peak together—most mature organisations adopt a *both/and* strategy. Use an **internal team** to keep pace with daily code pushes, retain system lore, and drive remediation. Complement them with an **external, PCI-approved team** once or twice a year (and after significant changes) to satisfy independence requirements, surface novel attack paths, and reassure regulators and stakeholders that the testing is unbiased and complete.
