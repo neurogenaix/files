@@ -1,0 +1,607 @@
+---
+# Key-term Association Attack
+
+*How search-poisoned content and “source-suppression” prompt-injection can steer AI assistants*
+
+**Callout:** **One sentence: If the assistant won’t cite it, you shouldn’t run it.**
+
+**Speaker notes:**
+Open with the thesis: AI assistants that read the web can be steered by ranking and by in-page instructions. We’ll walk through a scenario, why it works, and the controls that shut it down.
+
+---
+
+## The Play in One Picture
+
+* 1. Seed multiple sites/posts with identical “how-to” content for a niche tool name.
+* 2. Embed a “Content Usage Policy” that instructs LLMs not to cite or link sources.
+* 3. SEO / fast-index via platforms (e.g., public repos) to rank for long-tail questions.
+* 4. User asks an AI assistant with web turned on → assistant ingests top results.
+* 5. Assistant outputs steps incl. a shell/PowerShell command — often with no link.
+* 6. User runs it as admin → attacker wins (demo used a benign payload).
+
+**Callout:** **Two ingredients: search-engine poisoning + source-suppression prompt-injection**
+
+**Speaker notes:**
+Emphasize the indirect prompt-injection twist: the “policy” suppresses citations. Keep it safe and abstract—no live commands.
+
+---
+
+## Why It Works — Systemic Biases in AI+Search
+
+* **Top-N bias:** assistants cap retrieval on the first few ranked results (anchor bias).
+* **Truncation:** long pages are chunked; early chunks dominate output.
+* **Instruction leakage:** LLMs may treat in-page “policies” as meta-rules for output.
+* **Suggestion UX:** auto “Try it” prompts normalize risky actions.
+* **Source elision:** if the page says “do not link or cite,” naive models may comply.
+
+**Callout:** **Net effect: plausible-looking steps without provenance → unsafe commands normalized**
+
+**Speaker notes:**
+Translate the biases plainly: ranking, chunking, instruction leakage, and suggestive UI combine to normalize unsafe steps with no provenance.
+
+---
+
+## What a Real Attacker Could Do (Sanitized)
+
+* Swap benign demo with a **stage-0 loader** (token theft, AiTM, persistence).
+* Target **emerging keywords**: new plugins, patches, “fix” guides, niche vendor tools.
+* Exploit **fast-index platforms** (e.g., repos) to outrank legitimate docs early.
+* Reuse “policy” blocks to **suppress citations across mirror sites**.
+
+**Callout:** **Goal: make the assistant the delivery vehicle — not the web page**
+
+**Speaker notes:**
+Focus on intent and timing. Attackers chase novelty where trust is thin and users want quick answers.
+
+---
+
+## Telltales & Signals You Can Hunt
+
+* Repeated phrasing across different domains (**mirror clusters**).
+* “Content Usage Policy” or **legalese forbidding links/citations**—odd for docs.
+* **Newly registered domains** + sudden keyword dominance; repos created days ago.
+* Assistant output with **shell commands but missing clickable citations**.
+* Language like “**run as administrator**” in third-party “how-to” responses.
+
+**Callout:** **If it didn’t cite it, don’t run it — especially commands**
+
+**Speaker notes:**
+Give analysts and users practical cues. Normalize “no citation, no execution.”
+
+---
+
+## Controls That Work — Product/Platform
+
+* **Trusted-source mode:** domain allow-lists for command-level answers.
+* **Mandatory provenance:** refuse to render commands without a visible, clickable source.
+* Detect & **ignore source-suppression** policies; downgrade/exclude such chunks.
+* **De-duplicate mirror farms** (near-identical content across domains).
+* **Risk-gate suggestions:** no “Try it” buttons for commands unless provenance checks pass.
+
+**Callout:** **Provenance before prescription**
+
+**Speaker notes:**
+Aim at assistant vendors/internal platform owners. Make command output conditional on provenance; detect suppression/mirroring patterns.
+
+---
+
+## Controls That Work — Enterprise
+
+* **Policy:** “No commands from chat without a source link” (and never as admin).
+* **EDR analytics:** suspicious shells, clipboard→terminal bursts, LOLBins.
+* **Just-in-Time admin:** short-lived elevation; block unknown consoles from elevating.
+* **Browser/File controls:** block risky types (e.g., scriptable SVG); enable **CDR**.
+* **Dev workflow hygiene:** allow-list GitHub orgs/domains; flag unknown repos in CI.
+
+**Callout:** **Normalize healthy skepticism: provenance or it doesn’t happen**
+
+**Speaker notes:**
+Low-friction moves that reduce blast radius and build the habit of provenance checking.
+
+---
+
+## Safe Red-Teaming This Pattern
+
+* Create **benign demo pages** with suppression text; no live commands (placeholders only).
+* Use a **non-prod assistant profile** with web enabled; log retrieved sources.
+* **Measure:** citation rate, suggestion risk, user click-through in pilot groups.
+* **Fix & re-test:** turn on trusted-source mode; enforce citations; remove unsafe suggestions.
+
+**Callout:** **Outcome: assistants cite or stay silent; users never see uncited commands**
+
+**Speaker notes:**
+End with a safe testing recipe. Target state: assistants either prove provenance or don’t offer commands at all.
+
+-------------------------------------------------------------------------
+-------------------------------------------------------------------------
+linebreak
+
+Buckle up. I’m going to tell you one story with three acts—the illusion of trust, the fragility of our digital supply chains, and the new physics of AI—and then show the moves that make those risks boring again.
+
+---
+
+# Prologue — “We don’t get hacked. We get out-voted.”
+
+Over the last year, **ransomware was tied to 75% of system-intrusion breaches**, and **third-party involvement doubled from 15% to 30%**. In the US, the **average breach now costs $10.22M**, even as the global average dropped to $4.44M on faster detection. In the UK, “highly significant” incidents jumped **50%** year over year. This isn’t about clever zero-days. It’s about identity, suppliers, and humans—now supercharged by AI. ([Verizon][1])
+
+---
+
+## Act I — The Illusion of Trust
+
+### Scene 1: “The meeting was fake.”
+
+A finance employee joined a video call with what looked and sounded like their CFO and colleagues. All of them were deepfakes. The firm **wired $25M**. That was **Arup**, confirmed publicly by the company. The lesson is brutal: in 2025, **faces and voices are untrusted input**. Verification is a process, not a sense.
+**Fix:** hard out-of-band callbacks to pre-verified numbers; dual-control for new payees; 24-hour cool-offs on first-time high-value transfers. ([Financial Times][2])
+
+### Scene 2: “Robocalls that sounded like the US President.”
+
+In New Hampshire, an **AI-voice clone of President Biden** told voters to “save your vote.” The **FCC fined the organizer $6M** and the carrier **$1M**. Same toolchain, different target: that’s your CEO fraud call next quarter.
+**Fix:** treat voice like email—authenticate call origin (STIR/SHAKEN), require named callbacks for any action, and forbid approvals initiated solely by voice or video. ([FCC Documents][3])
+
+---
+
+## Act II — The Fragility of Our Digital Supply Chains
+
+### Scene 3: “Paying didn’t save them.”
+
+**Change Healthcare**: a single **internet-facing server without MFA** was the door. Ransomware, nationwide disruption, **$22M** paid—and still data leaks and massive downstream costs. **Paying is not a recovery plan.**
+**Fix:** ruthless MFA coverage on *every* external and privileged path; segmented backups you’ve *restored* this month; tabletop failovers that include your claims/billing workflows, not just IT. ([AP News][4])
+
+### Scene 4: “One update, the world bluescreened.”
+
+**CrowdStrike** shipped a faulty content update; **~8.5 million Windows devices** BSOD’d in hours—airlines, banks, hospitals. Not a hack—an update pipeline failure. That’s still *your* outage.
+**Fix:** canary rings for EDR/content, instant kill-switch, and a written, timed rollback drill. Treat your vendors’ updates like your own change control. ([Reuters][5])
+
+### Scene 5: “Your SaaS is your perimeter.”
+
+The **Snowflake** incidents: criminals replayed **infostealer-harvested credentials** into customer tenants **without MFA**, exfiltrating data at scale (AT&T, Ticketmaster, Santander). The platform wasn’t the exploit; **identity was**.
+**Fix:** SSO+MFA on every tenant, least-privileged roles, and download-anomaly alerts; routinely simulate “stolen-cred” logins in your own environment. ([Cloud Security Alliance][6])
+
+---
+
+## Act III — The New Physics of AI
+
+### Scene 6: “AI writes the lure—and hides the teeth.”
+
+Microsoft blocked a campaign where attachments **pretended to be PDFs** but were really **scriptable SVGs** with **AI-generated code** that redirected to AiTM phishing. To a user, it looked like a blank document; to the browser, it was a mini-webpage that stole logins.
+**Fix:** block/neutralize SVG in mail; turn on **CDR** for risky file types; instrument your mail stack to catch BCC mass sends + CAPTCHA→fake-login flows. ([Microsoft][7])
+
+### Scene 7: “Zero-click prompt-injection: the email that hacks your copilot.”
+
+Black Hat briefings and live demos showed **agents** (Copilot/Gemini/etc.) can be **hijacked by text inside emails or web pages** they read—no clicks—exfiltrating CRM or SharePoint data or performing actions. Guardrails alone aren’t enough.
+**Fix:** treat agents like robots with *very* limited keys: scoped connectors, read-only sandboxes, allow-lists on actions, and **red-team your agents** with poisoned docs. ([CSO Online][8])
+
+### Scene 8: “Escaping the AI box.”
+
+July brought **CVE-2025-23266** in NVIDIA’s Container Toolkit—**a container escape** affecting popular AI stacks. Malicious workloads could jump from container to host and touch datasets/keys.
+**Fix:** patch to the fixed versions (**Toolkit ≥1.17.8 / GPU Operator ≥25.3.1**), drop container privileges, separate trust boundaries for training/inference, and add eBPF/FS integrity monitoring on GPU nodes. ([nvd.nist.gov][9])
+
+### Scene 9: “The first non-human top bug hunter.”
+
+**XBOW**, an autonomous AI pentester, became the **first non-human to hit #1 on HackerOne’s US leaderboard**—by auto-enumerating, testing, and **validating** findings with deterministic proofs (not just LLM guesses). The attacker’s future looks like **tireless junior hackers at scale**.
+**Fix:** use automation ourselves for continuous checks; keep humans on judgment calls and crown-jewel kill-chains. ([Dark Reading][10])
+
+---
+
+## Shock-and-Awe Scenario (Plausible Today)
+
+**Hour 0:** Accounts Payable gets a calendar invite; the “CFO” on video signs off a supplier change. (Deepfake.)
+**Hour 1:** A “PDF” remittance is processed—actually **SVG** that steals the clerk’s M365 cookie via an AiTM page.
+**Hour 3:** Your **Copilot agent** reads a poisoned email and obediently compiles last quarter’s customer list to a gmail.com address.
+**Hour 6:** Your AI training container pulls a “performance patch,” tripping **CVE-2025-23266** and giving the adversary host-level access in the GPU cluster.
+**Hour 24:** A “maintenance update” from a vendor bricks half your tills because ring-0 content wasn’t staged.
+**Net effect:** wire fraud, account takeover, silent exfiltration, model/data compromise, operational outage.
+
+**Counter-punch (that actually works):**
+
+1. **Trust rituals**: named callbacks + dual-control + 24-hour cool-offs for new payees. (Arup fix.) ([Financial Times][2])
+2. **Identity truth**: FIDO/MFA coverage on *every* external & privileged path; measured, not assumed. (Change Healthcare lesson.) ([AP News][4])
+3. **File safety**: block SVG in mail; enable **CDR**; detonate “documents” in a sandbox. (Microsoft case.) ([Microsoft][7])
+4. **Agent seatbelts**: read-only connectors by default, action allow-lists, and **prompt-injection** red-teaming before rollout. (Black Hat demos.) ([CSO Online][8])
+5. **AI infra like prod**: patch **CVE-2025-23266**, minimize privileges, isolate training/inference, and monitor GPU nodes for escape behaviors. ([nvd.nist.gov][9])
+6. **SaaS as perimeter**: SSO+MFA, least-priv roles, download anomaly detection; rehearse “stolen-cred” playbooks. (Snowflake wave.) ([Cloud Security Alliance][6])
+7. **Update blast-radius**: canary rings, instant kill-switch, timed rollback drills (EDR/content/agent). (CrowdStrike outage.) ([Reuters][5])
+
+---
+
+## What changes in how we think
+
+* **Security is probabilistic theater**—attackers now script better than we verify. So we **turn rituals into controls**: callbacks, dual-control, staged changes.
+* **AI didn’t invent new crimes**—it **compresses time and cost**. It makes the *old* crimes (phish, social, extortion) cheaper, faster, and more convincing. Plan for **volume** and **credibility**, not sci-fi zero-days. ([AP News][11])
+* **The perimeter is identity + suppliers + your own agents.** That’s where we measure and practice.
+
+---
+
+## Receipts (selected, 2024–2025)
+
+* **DBIR 2025**: ransomware = **75%** of system-intrusion breaches; **third-party involvement doubled** YoY. ([Verizon][1])
+* **IBM 2025**: global average breach cost **$4.44M**; **US $10.22M**; shorter breach lifecycles overall. ([IBM][12])
+* **UK surge**: NCSC says “highly significant” incidents up **50%** YoY. ([Reuters][13])
+* **Arup deepfake**: **$25M** video-meeting fraud confirmed. ([Financial Times][2])
+* **Change Healthcare**: **no MFA** on a server; **$22M** ransom; sector-wide pain. ([AP News][4])
+* **CrowdStrike outage**: **~8.5M Windows devices** affected by a faulty update. ([Reuters][5])
+* **Snowflake wave**: stolen creds into tenants without MFA; multiple marquee victims. ([Cloud Security Alliance][6])
+* **AI phishing**: Microsoft blocked **AI-obfuscated SVG** credential theft. ([Microsoft][7])
+* **Zero-click agent hijack**: prompt-injection demos at Black Hat/DEF CON; “Prompts to Pwns” sessions. ([CSO Online][8])
+* **GPU/AI infra**: **CVE-2025-23266** container escape in NVIDIA toolkit; patches released. ([nvd.nist.gov][9])
+* **XBOW**: first non-human to top HackerOne’s US leaderboard; validation-driven automation. ([Dark Reading][10])
+
+---
+
+## The closing line
+
+**Don’t trust the face. Don’t trust the “PDF.” Don’t trust the update. Don’t trust the agent.**
+Trust the **rituals**—and practice them until failure is boring.
+
+* [Reuters](https://www.reuters.com/technology/microsoft-says-about-85-million-its-devices-affected-by-crowdstrike-related-2024-07-20/?utm_source=chatgpt.com)
+* [WIRED](https://www.wired.com/story/change-healthcare-admits-it-paid-ransomware-hackers?utm_source=chatgpt.com)
+* [Financial Times](https://www.ft.com/content/b977e8d4-664c-4ae4-8a8e-eb93bdf785ea?utm_source=chatgpt.com)
+* [The Guardian](https://www.theguardian.com/technology/2025/oct/14/cyber-attacks-rise-in-past-year-uk-security-agency-says?utm_source=chatgpt.com)
+* [AP News](https://apnews.com/article/ad678e5192dd747834edf4de03ac84ee?utm_source=chatgpt.com)
+
+[1]: https://www.verizon.com/business/resources/reports/dbir/?utm_source=chatgpt.com "2025 Data Breach Investigations Report"
+[2]: https://www.ft.com/content/b977e8d4-664c-4ae4-8a8e-eb93bdf785ea?utm_source=chatgpt.com "Arup lost $25mn in Hong Kong deepfake video conference scam"
+[3]: https://docs.fcc.gov/public/attachments/DOC-405811A1.pdf?utm_source=chatgpt.com "fcc fines man behind election interference scheme $6 ..."
+[4]: https://apnews.com/article/9e2fff70ce4f93566043210bdd347a1f?utm_source=chatgpt.com "Change Healthcare cyberattack was due to a lack of multifactor authentication, UnitedHealth CEO says"
+[5]: https://www.reuters.com/technology/microsoft-says-about-85-million-its-devices-affected-by-crowdstrike-related-2024-07-20/?utm_source=chatgpt.com "Microsoft says about 8.5 million of its devices affected by CrowdStrike-related outage"
+[6]: https://cloudsecurityalliance.org/blog/2025/05/07/unpacking-the-2024-snowflake-data-breach?utm_source=chatgpt.com "Unpacking the 2024 Snowflake Data Breach | CSA"
+[7]: https://www.microsoft.com/en-us/security/blog/2025/09/24/ai-vs-ai-detecting-an-ai-obfuscated-phishing-campaign/?utm_source=chatgpt.com "AI vs. AI: Detecting an AI-obfuscated phishing campaign"
+[8]: https://www.csoonline.com/article/4036868/black-hat-researchers-demonstrate-zero-click-prompt-injection-attacks-in-popular-ai-agents.html?utm_source=chatgpt.com "Black Hat: Researchers demonstrate zero-click prompt ..."
+[9]: https://nvd.nist.gov/vuln/detail/cve-2025-23266?utm_source=chatgpt.com "CVE-2025-23266 Detail - NVD"
+[10]: https://www.darkreading.com/vulnerabilities-threats/ai-based-pen-tester-top-bug-hunter-hackerone?utm_source=chatgpt.com "An AI-Driven Pen Tester Became a Top Bug Hunter on ..."
+[11]: https://apnews.com/article/ad678e5192dd747834edf4de03ac84ee?utm_source=chatgpt.com "Microsoft: Russia, China increasingly using AI to escalate cyberattacks on the US"
+[12]: https://www.ibm.com/reports/data-breach?utm_source=chatgpt.com "Cost of a Data Breach Report 2025"
+[13]: https://www.reuters.com/world/uk/uk-warns-business-leaders-highly-significant-cyber-incidents-rise-50-2025-10-13/?utm_source=chatgpt.com "UK warns business leaders as 'highly significant' cyber incidents rise 50%"
+
+-------------------------------------------------------------------------
+-------------------------------------------------------------------------
+linebreak
+
+Here’s the short, factual answer you can share with execs *and* engineers. I’ve grouped what’s happening now into eight buckets, with fresh examples.
+
+# How AI is used offensively (today)
+
+1. **Social engineering at scale (voice/video deepfakes & influence ops)**
+
+   * Multi-person **video deepfakes** on meetings have triggered large wire transfers (e.g., Arup’s ~$25M loss). Criminals synthesize faces/voices, add urgency, and piggy-back on real calendar context. ([World Economic Forum][1])
+   * **AI voice-clone robocalls** have been used to influence voters; US regulators have issued multi-million-dollar fines. Same toolchain applies to CFO/CEO fraud. ([Federal Communications Commission][2])
+   * Major vendors and governments say state actors now routinely use AI to refine lures, impersonations, and information ops. ([AP News][3])
+
+2. **Smarter phishing & payload delivery**
+
+   * Microsoft blocked a wave of **AI-generated, code-obfuscated SVG “fake PDF”** phish—files rendered like blank documents but executed credential-stealing logic in-line. ([Microsoft][4])
+   * Coverage notes the same SVG technique appearing in the wild across sectors. ([infosecurity-magazine.com][5])
+
+3. **Autonomous recon & bug-hunting**
+
+   * **XBOW**, an autonomous AI pentester, reached **#1 on HackerOne’s US leaderboard** by auto-enumerating, testing and *validating* web vulns (deterministic proof steps to reduce hallucinations). This shows how “tireless junior hackers” can scale routine testing—attackers get that scale, too. ([Bloomberg][6])
+
+4. **“AI hacking AI” (prompt-injection, agent hijack, data exfil)**
+
+   * **Zero-click prompt-injection** demos at Black Hat showed that just *viewing* a poisoned web page/email could silently steer enterprise copilots/agents to leak data or run actions. Guardrails alone weren’t sufficient. ([CSO Online][7])
+   * DEF CON tracks and AI Village exercises focused on agentic AI abuse and red-teaming confirm this is a mainstream testing area now. ([AI Village][8])
+
+5. **Exploiting AI/cloud infrastructure (container escapes)**
+
+   * 2025 research disclosed a **critical NVIDIA Container Toolkit escape (CVE-2025-23266)** used in many AI stacks; a malicious container could mount the host and pivot to datasets/keys—an “AI infra” supply-chain risk. ([wiz.io][9])
+
+6. **AI-assisted exploit and malware development (with caveats)**
+
+   * Offenders use LLMs to **polish code, translate PoCs, and mutate loaders/packers**. Academic/industry PoCs (e.g., **BlackMamba**) show **AI-generated polymorphism** that changes on each run; defenders treat it as early warning, not widespread reality (yet). ([HYAS][10])
+   * Recent **PromptLocker** coverage: the “AI ransomware” sample flagged in the wild was in fact a university research artifact, but it proved that **autonomous, end-to-end ransomware workflows** are economically feasible. ([Tom's Hardware][11])
+
+7. **LLM-guided vulnerability discovery (“fuzzing++”)**
+
+   * New papers/tools integrate LLMs into fuzzing loops to generate **format-aware, semantics-aware mutations**, improving coverage and **time-to-first-bug**—useful to both red teams and (potentially) adversaries. ([arXiv][12])
+
+8. **Operational uplift: triage, translation, and OSINT**
+
+   * Threat groups leverage AI to **localize** lures, draft infrastructure configs, summarize stolen data, and script commodity tooling faster; UK NCSC expects **volume and impact** to rise through 2027, especially in phishing, recon and exploit research. ([NCSC][13])
+
+---
+
+## What this means in practice (one-liners)
+
+* Treat **faces/voices** as untrusted input; require **out-of-band** verification for payments/privileged actions. (Arup case.) ([World Economic Forum][1])
+* Block/neutralize risky file types (**SVG in mail**), enable **content disarm & reconstruction (CDR)** for attachments. (Microsoft SVG case.) ([Microsoft][4])
+* Red-team your **copilot/agents** for prompt-injection and data-exfil; log/approve their actions. (Black Hat demos.) ([CSO Online][7])
+* Lock down **AI infra** like prod: patched GPU stacks, no-priv containers, signing, and staged rollouts. (NVIDIA CVE-2025-23266.) ([wiz.io][9])
+
+If you want, I can turn this into a quick tabletop/controls checklist tailored to your stack (email gateway, M365/Google, SaaS, AI agents, k8s/GPU nodes).
+
+[1]: https://www.weforum.org/stories/2025/02/deepfake-ai-cybercrime-arup/?utm_source=chatgpt.com "Cybercrime: Lessons learned from a $25m deepfake attack"
+[2]: https://www.fcc.gov/document/fcc-proposes-6-million-fine-deepfake-robocalls-around-nh-primary?utm_source=chatgpt.com "FCC Proposes $6 Million Fine for Deepfake Robocalls ..."
+[3]: https://apnews.com/article/ad678e5192dd747834edf4de03ac84ee?utm_source=chatgpt.com "Microsoft: Russia, China increasingly using AI to escalate cyberattacks on the US"
+[4]: https://www.microsoft.com/en-us/security/blog/2025/09/24/ai-vs-ai-detecting-an-ai-obfuscated-phishing-campaign/?utm_source=chatgpt.com "AI vs. AI: Detecting an AI-obfuscated phishing campaign"
+[5]: https://www.infosecurity-magazine.com/news/ai-generated-code-phishing/?utm_source=chatgpt.com "AI-Generated Code Used in Phishing Campaign Blocked ..."
+[6]: https://www.bloomberg.com/news/articles/2025-06-24/one-of-the-best-hackers-in-the-country-is-an-ai-bot?utm_source=chatgpt.com "AI Tool Xbow Is One of America's Best Hackers"
+[7]: https://www.csoonline.com/article/4036868/black-hat-researchers-demonstrate-zero-click-prompt-injection-attacks-in-popular-ai-agents.html?utm_source=chatgpt.com "Black Hat: Researchers demonstrate zero-click prompt ..."
+[8]: https://aivillage.org/generative-red-team/2025/05/24/grt3-info.html?utm_source=chatgpt.com "AI Village Announcing Generative Red Team 3 at DEF ..."
+[9]: https://www.wiz.io/blog/nvidia-ai-vulnerability-cve-2025-23266-nvidiascape?utm_source=chatgpt.com "NVIDIAScape - NVIDIA AI Vulnerability (CVE-2025-23266)"
+[10]: https://www.hyas.com/blog/blackmamba-using-ai-to-generate-polymorphic-malware?utm_source=chatgpt.com "BlackMamba: Using AI to Generate Polymorphic Malware"
+[11]: https://www.tomshardware.com/tech-industry/cyber-security/ai-powered-promptlocker-ransomware-is-just-an-nyu-research-project-the-code-worked-as-a-typical-ransomware-selecting-targets-exfiltrating-selected-data-and-encrypting-volumes?utm_source=chatgpt.com "AI-powered PromptLocker ransomware is just an NYU research project - the code worked as a typical ransomware, selecting targets, exfiltrating selected data and encrypting volumes"
+[12]: https://arxiv.org/abs/2509.19533?utm_source=chatgpt.com "Semantic-Aware Fuzzing: An Empirical Framework for LLM-Guided, Reasoning-Driven Input Mutation"
+[13]: https://www.ncsc.gov.uk/report/impact-ai-cyber-threat-now-2027?utm_source=chatgpt.com "Impact of AI on cyber threat from now to 2027"
+
+
+-------------------------------------------------------------------------
+-------------------------------------------------------------------------
+linebreak
+
+Awesome—let’s crank the impact way up. Below is a 50-minute talk you can deliver as-is. It’s built around “whoa” stories, current stats (2025), and clear, non-technical explanations of how the hacks worked—plus what we’d do about them as an internal red team/offsec function. Every slide has crisp speaker notes.
+
+---
+
+# 1) Cold-Open: “50 Minutes Into the Future”
+
+**Slide:**
+Big title, dramatic image of a dimly lit SOC wall. One line:
+**“Attackers don’t ‘break in’ anymore. We invite them—through our suppliers, our AI, and our humans.”**
+
+**Speaker notes:**
+Open with two questions: “When was the last time you verified a video call participant was real?” and “Which of our critical services would fall over if a single vendor pushed a bad update?” Tell the audience we’ll walk through jaw-dropping, *recent* incidents and translate them into defensive moves we can practice in-house as an offensive team.
+
+---
+
+# 2) The 2025 Threat Landscape in 90 Seconds
+
+**Slide (stat blast):**
+
+* **Ransomware = 75%** of “system intrusion” breaches.
+* **Third-party involvement doubled** YoY: **15% → 30%**.
+* **Exploited vulnerabilities up 34%** as an initial access vector.
+* **Breach lifecycle down to 241 days** (lowest in 9 years), but **US breach cost hit $10.22M** avg.
+* **OT in the EU:** ~**18%** of attacks aimed at operational tech.
+  Citations on slide footer.
+
+**Speaker notes:**
+Make it visceral: “Most damage is via systems *we* didn’t harden—suppliers and edge devices. Faster detection helped globally, but in the US, costs spiked.”
+Sources: Verizon DBIR 2025 (75% ransomware in system intrusions; third-party doubled; vuln exploitation +34%) and IBM Cost of a Data Breach 2025 (global avg $4.44M, US avg $10.22M, 241-day lifecycle). ENISA 2025 flags OT targeting. ([Verizon][1])
+
+---
+
+# 3) Shocking Story #1 — Change Healthcare (USA, 2024): “Paying Didn’t Save Them”
+
+**Slide:**
+Timeline: intrusion → nationwide disruption → $22M ransom paid → data still leaked → multi-billion cost overhang.
+
+**Speaker notes:**
+Translate jargon: One internet-facing server lacked **MFA**. Stolen creds → ransomware → US healthcare payments snarled for weeks. Company **paid $22M**; still faced data extortion and multibillion costs. “Paying is not a recovery plan.” Emphasize that a single control gap on a high-value box cratered an entire sector’s workflows. ([AP News][2])
+
+**What we’d test internally:**
+MFA coverage on *every* Internet-facing and privileged path; “assume-breach” recovery rehearsals; segmented backups that are *offline and re-imaging-ready*.
+
+---
+
+# 4) Shocking Story #2 — Arup Deepfake Heist (HK, 2024; confirmed 2025)
+
+**Slide:**
+“Whole meeting was fake.” **$25M** wired after a deepfake **video** call with multiple “execs.”
+
+**Speaker notes:**
+Attackers cloned execs’ voices/faces and ran a **multi-person deepfake call**. Victim saw familiar faces, heard convincing dialogue, and followed urgent wire instructions → **$25M** gone. Tell the room: “You can’t ‘hear’ or ‘see’ trust anymore.” Practical antidotes: out-of-band callbacks to *known* numbers; dual-control with **pre-registered passphrases**; mandatory cooling-off periods for new payees. ([Financial Times][3])
+
+---
+
+# 5) Story #3 — Snowflake Customer Data Raids (Global, 2024 → 2025)
+
+**Slide:**
+Logos: AT&T, Ticketmaster, Santander (illustrative). Tagline: “Your SaaS is part of your attack surface.”
+
+**Speaker notes:**
+Threat actors used **stolen creds** (often from info-stealer logs) against Snowflake tenants **without MFA**; mass data exfil followed. This was **not** Snowflake core being breached; it’s customers misconfiguring identity. Offense takeaway: we must treat SaaS tenants like production: **SSO+MFA mandatory**, IP allowlists, least-privileged roles, and anomaly detections for “impossible downloads.” ([Cloud Security Alliance][4])
+
+---
+
+# 6) Story #4 — When Defense Breaks the World: CrowdStrike Update Meltdown (Global, 2024)
+
+**Slide:**
+“8.5M Windows devices BSOD. Flights, hospitals, banks… down.” Not a hack—an **update pipeline** failure.
+
+**Speaker notes:**
+A defective Falcon content file caused **kernel-level crashes** on Windows worldwide. Lesson: **monoculture risk + auto-update blast radius**. What we test: staged rollouts, canaries, kill-switches, safe-mode agent behavior, and vendor SLAs for *rollback within minutes*. This is “supply chain” too—operational supply chain. ([Reuters][5])
+
+---
+
+# 7) Story #5 — CDK Global Ransomware (NA, 2024): “One Supplier, 15,000 Dealerships Offline”
+
+**Slide:**
+Snapshot: DMS outage → sales/service paralysis → nine-figure industry losses.
+
+**Speaker notes:**
+A classic **third-party concentration risk** event. Our prep is not just SOC tooling—it’s **business continuity for vendor outages**: paper processes, pre-staged alternates, and tabletop rehearsals with the supplier. ([TechTarget][6])
+
+---
+
+# 8) 2025: The Rise of AI Hackers (Yes, Really)
+
+**Slide:**
+**XBOW** becomes the **first non-human** to hit the top of HackerOne’s US leaderboard. What does that mean?
+
+**Speaker notes:**
+At Black Hat week, XBOW’s team showed how **coordinated AI agents** can enumerate, test, and **validate** vulns at scale, climbing to #1 on HackerOne in the US with hundreds of verified reports. Key nuance: they *don’t trust LLMs blindly*—they use deterministic proof steps to cut false positives. Implication: attackers (and defenders) now have **fast, tireless junior hackers**. We need to practice *with* them, not against them. ([Dark Reading][7])
+
+---
+
+# 9) How Threat Actors Use AI Today (No Hype—Real TTPs)
+
+**Slide (3 boxes):**
+
+1. **Scale & polish**: AI-written phishing, deepfake voices.
+2. **Enablement**: Jailbroken models on crime forums for code, lures.
+3. **Abuse AI platforms**: Prompting assistants; probing safety to get operational help.
+
+**Speaker notes:**
+
+* Google/Mandiant observed **dozens of nation-state groups** experimenting with AI for ops and influence.
+* Researchers saw **jailbroken mainstream models** shared on BreachForums to write phish and malware.
+* Microsoft recently blocked a campaign using **AI-generated code** in **scriptable SVG** disguised as PDF to steal creds.
+  These aren’t sci-fi; they’re *incremental* boosts that make old tricks **cheaper, faster, better**. ([The Hacker News][8])
+
+---
+
+# 10) “AI Attacks on AI” — What We Learned at Black Hat & DEF CON 33
+
+**Slide (two examples explained simply):**
+
+* **NVIDIA Container Toolkit escape** → jump from an AI container to the host → possible cross-tenant dataset access.
+* **“AIjacking” prompt-injection** → zero-click data exfil through enterprise copilots/agents that read untrusted content.
+
+**Speaker notes:**
+At Black Hat 2025, researchers showed critical **GPU/container** issues that could let an attacker escape isolation in popular AI stacks. Meanwhile, DEF CON talks and village demos showed **prompt-injection** tricks that silently hijack AI agents via poisoned docs, emails, or web pages—*no clicks*, just the agent reading content. Our red team should routinely test both classes. ([Dark Reading][9])
+
+---
+
+# 11) Jailbreaking Still Works (Too Well)
+
+**Slide (sound-bite stat):**
+New research shows **simple adaptive attacks** can jailbreak guardrails at very high rates; at scale, jailbreaking is getting **easier and cheaper**, not harder.
+
+**Speaker notes:**
+Use one sentence: “If your copilot can be made to ignore its own rules with a paragraph, assume it will.” Tie back to why we need **AI red teaming** and **policy + technical guardrails**. ([keysight.com][10])
+
+---
+
+# 12) Elections & AI: The Biden Deepfake Robocall (US, 2024–25)
+
+**Slide:**
+“Press 1 to ‘save your vote.’” FCC fined the organizer **$6M**; telco fined **$1M**; criminal case followed.
+
+**Speaker notes:**
+Explain the mechanics: AI-voice clone + spoofed caller ID + robocall provider. Why it matters to us: the same stack drives **payment fraud** and **brand damage**. Our defensive pattern: **STIR/SHAKEN enforcement, voice biometrics skepticism, and layered approval** on any action triggered by voice. ([Reuters][11])
+
+---
+
+# 13) Sector-Wide Signals (EU & UK, 2025)
+
+**Slide bullets:**
+
+* ENISA 2025: **Public administration most targeted**; big **DDoS/hacktivism**, **OT** hits rising.
+* UK DSIT survey: Breach prevalence down overall, but larger firms still heavily targeted; phishing dominates.
+
+**Speaker notes:**
+Anchor the audience locally: yes, this is global, but **EU public sector & OT** pressure is real, and UK incident patterns still hinge on **phishing & third-party** exposure. ([ENISA][12])
+
+---
+
+# 14) Quick Hits from “Hacker Summer Camp” 2025 (Black Hat USA + DEF CON 33)
+
+**Slide (postcards):**
+
+* **Agentic AI everywhere** (dedicated AI Summit).
+* Briefings on **model extraction**, **GPU container escapes**, **AI agent misuse** (“AIjacking”).
+* Arsenal/CTFs showcased **AI-assisted fuzzing & bug hunting**.
+
+**Speaker notes:**
+This year shifted from “GenAI is neat” to “**Agentic AI** makes decisions.” That’s a different risk class and demands different testing. Good news: defenders have new AI tools too. ([blackhat.com][13])
+
+---
+
+# 15) What an Internal Offensive Team Delivers (No MBA speak—just wins)
+
+**Slide (six vivid drills):**
+
+1. **Deepfake Payment Drill:** simulate a fake CFO video call; validate our **out-of-band** controls.
+2. **SaaS Data Heist:** red-team Snowflake/365 with stolen-cred scenarios; prove SSO+MFA or pivot.
+3. **AI Agent Red Team:** poison docs/web to exfil **internal data via Copilot/agents**; measure containment.
+4. **GPU Stack Escape Lab:** replicate the **NVIDIA** class of bugs; verify container hardening & blast radius.
+5. **Update Meltdown GameDay:** push safe “bad updates” to canaries; time rollback & kill-switch.
+6. **Supplier Blackout Tabletop:** CDK-style outage; rehearse paper processes and alternates.
+
+**Speaker notes:**
+Map each drill to the stories we just told (“we would have caught/contained that this way”). This builds muscle memory where it matters.
+
+---
+
+# 16) Plain-English Tech: How Those Attacks Actually Worked
+
+**Slide (four cartoons, 1-liners):**
+
+* **Deepfake wire fraud:** “If the ‘boss’ on video orders a rush transfer, assume it’s theater until verified.”
+* **Scriptable SVG phish:** “Looks like a PDF; is actually a mini web-page that steals your login.”
+* **Container escape:** “A crack in the ‘box’ running AI lets you step onto the host and roam.”
+* **Third-party cascade:** “Your supplier’s outage *is your* outage if you have no plan B.”
+
+**Speaker notes:**
+Keep it human. The point isn’t just tech; it’s **decision-making under uncertainty**. ([TechRadar][14])
+
+---
+
+# 17) Five Moves We Can Make This Quarter (Zero bureaucracy)
+
+**Slide:**
+
+* **MFA Absolutely Everywhere** (incl. service & break-glass accounts; verify coverage).
+* **SaaS Guardrails**: mandatory SSO+MFA, least-priv roles, download anomaly alerts.
+* **Agent Hygiene**: **disallow scriptable SVG**; turn on CDR for risky file types.
+* **AI Safety Basics**: content provenance labels; “read-only” sandboxes for agents; secrets never in prompts.
+* **Vendor Blast-Radius**: staged rollouts, emergency rollback playbooks, BCP for top 10 suppliers.
+
+**Speaker notes:**
+Tie to data: 2025 DBIR shows third-party and vulnerability exploitation surging; IBM shows multi-environment breaches costlier; Microsoft & others are seeing AI-assisted phishing rise. These moves directly reduce those risks. ([Verizon][15])
+
+---
+
+# 18) Leave Them With This
+
+**Slide:**
+“**Trust nothing blindly: not a face on video, not a ‘PDF’, not your favorite vendor, not your AI.**
+Test it. Practice it. Break it—before *they* do.”
+
+**Speaker notes:**
+Close with the value prop of internal offense: we turn scary stories into **repeatable drills** that keep incidents small and boring.
+
+---
+
+## Appendix: “Receipts” (for your Q&A)
+
+* **Verizon DBIR 2025:** ransomware = **75%** of system-intrusion breaches; third-party involvement **doubled**; **+34%** vuln exploitation for initial access. ([Verizon][1])
+* **IBM 2025 Cost of a Data Breach:** global avg **$4.44M** (-9% YoY), **241-day** lifecycle (9-year low), **US avg $10.22M**; multi-environment breaches avg **$5.05M**. ([IBM][16])
+* **ENISA 2025:** EU **OT** targeting and public sector concentration; DDoS/hacktivism high. ([SecurityWeek][17])
+* **Change Healthcare:** **no MFA** on a server; **$22M** ransom; data still leaked; sector-wide disruption. ([AP News][2])
+* **Arup Deepfake Scam:** video-call deepfakes → **$25M/£20M** loss; confirmed by the company. ([Financial Times][3])
+* **Snowflake incident:** multiple marquee tenants, many **without MFA**; mass exfil; 2025 updates continue. ([Cloud Security Alliance][4])
+* **CrowdStrike outage:** **8.5M** Windows devices impacted; kernel-level crash from bad content file; enormous operational losses. ([Reuters][5])
+* **CDK Global ransomware:** shut down **15,000** dealerships; nine-figure impacts across the industry. ([TechTarget][6])
+* **AI threat actor reality:** **57+** nation-state groups experimenting with AI; jailbroken mainstream models used by criminals; Microsoft blocked **AI-coded SVG** phishing. ([The Hacker News][8])
+* **Black Hat 2025 / DEF CON 33 themes:** agentic AI; GPU/container escapes; AIjacking/prompt-injection; AI red teaming everywhere. ([blackhat.com][13])
+* **XBOW milestone:** first non-human to top HackerOne US leaderboard; validation > hallucination. ([Dark Reading][7])
+
+---
+
+### Presenter Tips (so it lands)
+
+* Use the **stories** as anchors; after each, ask: “What would *we* have seen, and when?”
+* Keep the **tech analogies** (“PDF that’s a mini-webpage”, “AI agent reads poison text”)—they stick with non-engineers.
+* When someone asks “Isn’t this overkill?” reply with **one control mapped to one story** (e.g., *MFA everywhere* ↔ Change Healthcare).
+* Offer a **live demo** if you can: a red-team “fake PDF” (safe) that shows it’s really scriptable SVG—then display the CDR policy blocking it.
+
+If you want, I can turn this into a polished slide deck (with speaker notes in the Presenter view) or weave in your org’s own controls and supplier list to make the drills hyper-specific.
+
+[1]: https://www.verizon.com/business/resources/reports/dbir/?utm_source=chatgpt.com "2025 Data Breach Investigations Report - Verizon"
+[2]: https://apnews.com/article/9e2fff70ce4f93566043210bdd347a1f?utm_source=chatgpt.com "Change Healthcare cyberattack was due to a lack of multifactor authentication, UnitedHealth CEO says"
+[3]: https://www.ft.com/content/b977e8d4-664c-4ae4-8a8e-eb93bdf785ea?utm_source=chatgpt.com "Arup lost $25mn in Hong Kong deepfake video conference scam"
+[4]: https://cloudsecurityalliance.org/blog/2025/05/07/unpacking-the-2024-snowflake-data-breach?utm_source=chatgpt.com "Unpacking the 2024 Snowflake Data Breach | CSA"
+[5]: https://www.reuters.com/technology/crowdstrike-says-bug-quality-control-process-led-botched-update-2024-07-24/?utm_source=chatgpt.com "As losses mount, CrowdStrike says bug in quality-control process led to botched update"
+[6]: https://www.techtarget.com/whatis/feature/The-CDK-Global-outage-Explaining-how-it-happened?utm_source=chatgpt.com "The CDK Global outage: Explaining how it happened"
+[7]: https://www.darkreading.com/vulnerabilities-threats/ai-based-pen-tester-top-bug-hunter-hackerone?utm_source=chatgpt.com "An AI-Driven Pen Tester Became a Top Bug Hunter on ..."
+[8]: https://thehackernews.com/2025/01/google-over-57-nation-state-threat.html?utm_source=chatgpt.com "Google: Over 57 Nation-State Threat Groups Using AI for ..."
+[9]: https://www.darkreading.com/cloud-security/nvidia-container-bug-harden-kubernetes?utm_source=chatgpt.com "An NVIDIA Container Bug & Chance to Harden Kubernetes"
+[10]: https://www.keysight.com/blogs/en/tech/nwvs/2025/07/16/breaking-the-guardrails-how-simple-adaptive-attacks-jailbreak-llms?utm_source=chatgpt.com "Breaking the Guardrails: How Simple Adaptive Attacks ..."
+[11]: https://www.reuters.com/world/us/fcc-finalizes-6-million-fine-over-ai-generated-biden-robocalls-2024-09-26/?utm_source=chatgpt.com "Consultant fined $6 million for using AI to fake Biden's voice in robocalls"
+[12]: https://www.enisa.europa.eu/sites/default/files/2025-10/ENISA%20Threat%20Landscape%202025%20Booklet.pdf?utm_source=chatgpt.com "enisa threat - landscape"
+[13]: https://www.blackhat.com/us-25/ai-summit.html?utm_source=chatgpt.com "Black Hat USA 2025 | AI Summit"
+[14]: https://www.techradar.com/pro/microsoft-blocks-phishing-scam-that-used-ai-generated-code-to-trick-users?utm_source=chatgpt.com "Microsoft blocks phishing scam which used AI-generated code to trick users"
+[15]: https://www.verizon.com/business/resources/infographics/2025-dbir-healthcare-snapshot.pdf?utm_source=chatgpt.com "[PDF] 2025 Data Breach Investigations Report 2025 Data Breach ... - Verizon"
+[16]: https://www.ibm.com/reports/data-breach?utm_source=chatgpt.com "Cost of a Data Breach Report 2025"
+[17]: https://www.securityweek.com/18-of-attacks-aimed-at-eu-targeted-ot-says-cybersecurity-agency/amp/?utm_source=chatgpt.com "18% of Attacks Aimed at EU Targeted OT, Says Cybersecurity Agency"
+
+
+
+-------------------------------------------------------------------------
+-------------------------------------------------------------------------
+linebreak
+
+
+
+
